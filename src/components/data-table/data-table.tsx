@@ -10,19 +10,19 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
-  ColumnDef,
   ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  RowData,
   SortingState,
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
 
-import { ArrowUp, ChevronDown, DatabaseIcon } from "lucide-react";
+import { ChevronDown, DatabaseIcon } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -42,53 +42,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { dataTable, Payment } from "@/data/data-table";
-import { cn } from "@/lib/utils";
+import { columns, getCellRuleValue } from "./columns";
+import { TValueBase } from "@/table";
 
-const columns: ColumnDef<Payment>[] = [
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <div className="capitalize">{row.getValue("status")}</div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
-          <ArrowUp
-            className={cn("transition-transform transform", {
-              "rotate-z-180": column.getIsSorted() === "asc",
-            })}
-          />
-        </Button>
-      );
-    },
-    cell: ({ row }) => (
-      <div className="lowercase pl-3">{row.getValue("email")}</div>
-    ),
-  },
-  {
-    accessorKey: "amount",
-    header: () => <div className="text-right">Amount</div>,
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
+type RuleOperator =
+  | "contains"
+  | "equals"
+  | "notEquals"
+  | "greaterThan"
+  | "lessThan";
 
-      // Format the amount as a dollar amount
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-
-      return <div className="text-right">{formatted}</div>;
-    },
-  },
-];
+export interface Rule<TData extends RowData, Value = TValueBase> {
+  column: keyof TData;
+  operator: RuleOperator;
+  value: Value;
+  styles: React.CSSProperties;
+}
 
 export function DataTable() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -98,9 +67,75 @@ export function DataTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
 
+  // for string value to compare number value, should allow , but convert
+  // improve operators functions
+  // for user search
+  // 10 === "10" or 10 !== "10"
+  const rules: Rule<Payment>[] = [
+    {
+      column: "status",
+      operator: "contains",
+      value: "failed",
+      styles: {
+        backgroundColor: "#ffed9d",
+      },
+    },
+    {
+      column: "amount",
+      operator: "equals",
+      value: 316,
+      styles: {
+        color: "green",
+        fontWeight: "600",
+      },
+    },
+    {
+      column: "amount",
+      operator: "equals",
+      value: 242,
+      styles: {
+        color: "green",
+        fontWeight: "600",
+        backgroundColor: "#c0ffc8",
+      },
+    },
+    {
+      column: "email",
+      operator: "notEquals",
+      value: "janedoe@example.com",
+      styles: {
+        color: "#777",
+      },
+    },
+    {
+      column: "email",
+      operator: "contains",
+      value: "ll",
+      styles: {
+        color: "red",
+      },
+    },
+    {
+      column: "amount",
+      operator: "greaterThan",
+      value: 900,
+      styles: {
+        color: "red",
+      },
+    },
+    {
+      column: "amount",
+      operator: "contains",
+      value: "7",
+      styles: {
+        color: "blue",
+      },
+    },
+  ];
+
   const table = useReactTable({
     data: dataTable,
-    columns,
+    columns: columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -112,6 +147,75 @@ export function DataTable() {
       sorting,
       columnFilters,
       columnVisibility,
+    },
+    meta: {
+      rules,
+      rulesFn: (cell) => {
+        const columnId = cell?.column?.id || cell?.column?.columnDef?.id;
+
+        if (!columnId) {
+          throw new Error("Column ID is not defined");
+        }
+        const rules = cell.getContext().table?.options.meta?.rules || [];
+
+        const operators: Record<
+          RuleOperator,
+          (a: TValueBase, b: TValueBase) => boolean
+        > = {
+          contains: (a, b) => {
+            return a
+              .toString()
+              .toLowerCase()
+              .includes(b.toString().toLowerCase());
+          },
+          equals: (a, b) => {
+            if (typeof a === "number" && typeof b === "number") {
+              return Number(a) === Number(b);
+            }
+            return a === b;
+          },
+          greaterThan: (a, b) => {
+            if (typeof a === "number" && typeof b === "number") {
+              return Number(a) > Number(b);
+            }
+
+            return false;
+          },
+          lessThan: (a, b) => {
+            if (typeof a === "number" && typeof b === "number") {
+              return Number(a) < Number(b);
+            }
+            return false;
+          },
+          notEquals: (a, b) => {
+            if (typeof a === "number" && typeof b === "number") {
+              return Number(a) !== Number(b);
+            }
+            return a !== b;
+          },
+        };
+
+        const filterRules = rules?.filter((rule) => {
+          const columnMatch = rule.column === columnId;
+          const value = cell.getValue();
+
+          const operatorFn = operators[rule.operator];
+          const operatorMatch = operatorFn(value, rule.value);
+
+          return columnMatch && operatorMatch;
+        });
+        if (filterRules.length) {
+          const combinedStyles = filterRules?.reduce((acc, rule) => {
+            return {
+              ...acc,
+              ...rule.styles,
+            };
+          }, {});
+
+          return combinedStyles;
+        }
+        return {};
+      },
     },
   });
 
@@ -168,6 +272,16 @@ export function DataTable() {
                 <DrawerTitle>Create rule</DrawerTitle>
               </DrawerHeader>
 
+              <div className="flex flex-col">
+                {rules.map((rule, index) => {
+                  return (
+                    <div key={index} style={rule.styles}>
+                      {rule.operator}
+                    </div>
+                  );
+                })}
+              </div>
+
               <DrawerFooter className="flex-row justify-end">
                 <DrawerClose>
                   <Button variant="outline">Cancel</Button>
@@ -205,11 +319,17 @@ export function DataTable() {
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-6">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const styles = getCellRuleValue(cell);
+                  return (
+                    <TableCell key={cell.id} className="px-6" style={styles}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))
           ) : (
