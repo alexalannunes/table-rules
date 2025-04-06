@@ -11,6 +11,8 @@ declare module "@tanstack/table-core" {
   }
 }
 
-// declare module "@tanstack/react-table" {
-//   interface ColumnMeta<TData extends RowData> {}
-// }
+declare module "@tanstack/react-table" {
+  interface ColumnMeta {
+    title?: string;
+  }
+}

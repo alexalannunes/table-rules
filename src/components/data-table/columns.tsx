@@ -30,6 +30,10 @@ export const columns: ColumnDef<Payment, TValueBase>[] = [
     cell: (info) => {
       return <div className="capitalize">{info.getValue<string>()}</div>;
     },
+    meta: {
+      title: "Status",
+    },
+    id: "status",
   },
   {
     accessorKey: "email",
@@ -51,6 +55,10 @@ export const columns: ColumnDef<Payment, TValueBase>[] = [
     cell: ({ row }) => (
       <div className="lowercase pl-3">{row.getValue("email")}</div>
     ),
+    id: "email",
+    meta: {
+      title: "Email",
+    },
   },
   {
     accessorKey: "amount",
@@ -66,5 +74,9 @@ export const columns: ColumnDef<Payment, TValueBase>[] = [
 
       return <div className="text-right">{formatted}</div>;
     },
+    meta: {
+      title: "Amount",
+    },
+    id: "amount",
   },
 ];
