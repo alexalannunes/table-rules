@@ -422,6 +422,16 @@ export function DataTable() {
                         )}
                       </SelectContent>
                     </Select>
+
+                    <Input
+                      value={newRule.value}
+                      onChange={(e) => {
+                        setNewRule((prev) => ({
+                          ...prev,
+                          value: e.target.value,
+                        }));
+                      }}
+                    />
                   </div>
 
                   <div className="mx-4 flex gap-2 flex-col mt-6">
@@ -470,8 +480,6 @@ export function DataTable() {
                 </div>
               </div>
 
-              {JSON.stringify(newRule)}
-
               <DrawerFooter className="flex-row justify-end">
                 <DrawerClose asChild>
                   <Button variant="outline">Cancel</Button>
@@ -499,6 +507,15 @@ export function DataTable() {
                     };
                     setRules((prev) => [...prev, transformRule]);
                     setRuleOpen(false);
+                    setNewRule({
+                      color: "",
+                      styles: [],
+                      operator: "contains",
+                      value: "",
+                      column: [],
+                    });
+                    // add validation
+                    // or style or color
                   }}
                 >
                   Apply
