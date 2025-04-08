@@ -1,8 +1,14 @@
-import { Bold, Italic, LucideProps, Underline } from "lucide-react";
-import { ComponentType, createElement, CSSProperties, useState } from "react";
+import {
+  Bold,
+  Italic,
+  LucideIcon,
+  Strikethrough,
+  Underline,
+} from "lucide-react";
+import { CSSProperties, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
-export type RuleFontType = "bold" | "italic" | "underline";
+export type RuleFontType = "bold" | "italic" | "underline" | "line-through";
 
 export interface RuleFontValue {
   value: RuleFontType;
@@ -15,7 +21,7 @@ interface RuleFontProps {
 }
 
 interface ButtonStylesType extends RuleFontValue {
-  icon: ComponentType<LucideProps>;
+  icon: LucideIcon;
 }
 const buttonStyles: ButtonStylesType[] = [
   {
@@ -37,6 +43,13 @@ const buttonStyles: ButtonStylesType[] = [
     icon: Underline,
     styles: {
       textDecoration: "underline",
+    },
+  },
+  {
+    value: "line-through",
+    icon: Strikethrough,
+    styles: {
+      textDecoration: "line-through",
     },
   },
 ];
@@ -80,9 +93,7 @@ export function RuleFont({ onChange, value }: RuleFontProps) {
           value={btn.value}
           aria-label="Toggle style"
         >
-          {createElement(btn.icon, {
-            className: "h-4 w-4",
-          })}
+          <btn.icon className="h-4 w-4" />
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
