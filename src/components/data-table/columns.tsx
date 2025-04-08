@@ -59,7 +59,23 @@ export const columns: ColumnDef<Payment, TValueBase>[] = [
   },
   {
     accessorKey: "amount",
-    header: () => <div className="text-right">Amount</div>,
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="ml-auto flex -mr-4"
+        >
+          Amount
+          <ArrowUp
+            className={cn("transition-transform transform", {
+              "rotate-z-180": column.getIsSorted() === "asc",
+            })}
+          />
+        </Button>
+      );
+    },
+    sortingFn: "alphanumeric",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("amount"));
 

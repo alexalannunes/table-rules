@@ -89,17 +89,30 @@ function matchRule<TData extends RowData>({
   value: TValueBase;
   rule: Rule<TData, unknown>;
 }) {
+  const compareNumbers = (
+    a: unknown,
+    b: unknown,
+    comp: (a: number, b: number) => boolean
+  ) => {
+    const numA = Number(a);
+    const numB = Number(b);
+    return !isNaN(numA) && !isNaN(numB) && comp(numA, numB);
+  };
   // move to other fn
   const operators: Record<
     RuleOperator,
     (a: TValueBase, b: TValueBase) => boolean
   > = {
     contains: (a, b) => {
+      if (!a || !b) return false;
       return a.toString().toLowerCase().includes(b.toString().toLowerCase());
     },
     equals: (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return Number(a) === Number(b);
+      const numA = Number(a);
+      const numB = Number(b);
+      const bothNumbers = !isNaN(numA) && !isNaN(numB);
+      if (bothNumbers) {
+        return numA === numB;
       }
       if (typeof a === "string" && typeof b === "string") {
         return a.toLowerCase() === b.toLowerCase();
@@ -107,21 +120,20 @@ function matchRule<TData extends RowData>({
       return a === b;
     },
     greaterThan: (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return Number(a) > Number(b);
-      }
-
-      return false;
+      return compareNumbers(a, b, (x, y) => x > y);
     },
     lessThan: (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return Number(a) < Number(b);
-      }
-      return false;
+      return compareNumbers(a, b, (x, y) => x < y);
     },
     notEquals: (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return Number(a) !== Number(b);
+      const numA = Number(a);
+      const numB = Number(b);
+      const bothNumbers = !isNaN(numA) && !isNaN(numB);
+      if (bothNumbers) {
+        return numA !== numB;
+      }
+      if (typeof a === "string" && typeof b === "string") {
+        return a.toLowerCase() !== b.toLowerCase();
       }
       return a !== b;
     },
@@ -251,11 +263,18 @@ export function DataTable() {
       columnFilters,
       columnVisibility,
     },
+    initialState: {
+      pagination: {
+        pageSize: 50,
+      },
+    },
     meta: {
       rules,
       rulesFn: applyRuleFn,
     },
   });
+
+  console.log(rules);
 
   const handleChangeRuleFont = React.useCallback((value: RuleFontValue[]) => {
     setNewRule((prev) => ({
@@ -442,7 +461,9 @@ export function DataTable() {
                     const transformRule: Rule<Payment, TValueBase> = {
                       column: newRule.column,
                       operator: newRule.operator as RuleOperator,
-                      value: newRule.value,
+                      value: !isNaN(newRule.value as unknown as number)
+                        ? Number(newRule.value)
+                        : newRule.value,
                       styles: mappedStyles,
                     };
                     setRules((prev) => [...prev, transformRule]);
