@@ -11,6 +11,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
+  Cell,
   ColumnFiltersState,
   flexRender,
   getCoreRowModel,
@@ -22,13 +23,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import {
-  Bold,
-  ChevronDown,
-  DatabaseIcon,
-  Italic,
-  Underline,
-} from "lucide-react";
+import { ChevronDown, DatabaseIcon } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -59,8 +54,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { columns, getCellRuleValue } from "./columns";
+import { RuleFont, RuleFontValue } from "../rule-font";
 
 type RuleOperator =
   | "contains"
@@ -69,6 +64,14 @@ type RuleOperator =
   | "greaterThan"
   | "lessThan";
 
+export interface NewRuleState {
+  color: string;
+  styles: RuleFontValue[];
+  operator: string;
+  value: string;
+  column: Array<keyof Payment>;
+}
+
 const operatorOptions: Record<RuleOperator, string> = {
   contains: "Contains",
   equals: "Equals",
@@ -76,6 +79,93 @@ const operatorOptions: Record<RuleOperator, string> = {
   greaterThan: "Greater Than",
   lessThan: "Less Than",
 };
+
+function matchRule<TData extends RowData>({
+  columnId,
+  value,
+  rule,
+}: {
+  columnId: keyof Payment;
+  value: TValueBase;
+  rule: Rule<TData, unknown>;
+}) {
+  // move to other fn
+  const operators: Record<
+    RuleOperator,
+    (a: TValueBase, b: TValueBase) => boolean
+  > = {
+    contains: (a, b) => {
+      return a.toString().toLowerCase().includes(b.toString().toLowerCase());
+    },
+    equals: (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return Number(a) === Number(b);
+      }
+      if (typeof a === "string" && typeof b === "string") {
+        return a.toLowerCase() === b.toLowerCase();
+      }
+      return a === b;
+    },
+    greaterThan: (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return Number(a) > Number(b);
+      }
+
+      return false;
+    },
+    lessThan: (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return Number(a) < Number(b);
+      }
+      return false;
+    },
+    notEquals: (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return Number(a) !== Number(b);
+      }
+      return a !== b;
+    },
+  };
+
+  const columnMatch = rule.column.includes(columnId as keyof TData);
+
+  const operatorFn = operators[rule.operator];
+  const operatorMatch = operatorFn(value, rule.value as TValueBase);
+
+  return columnMatch && operatorMatch;
+}
+
+function applyRuleFn(cell: Cell<Payment, unknown>) {
+  // keyof TData
+  const columnId = (cell?.column?.id ||
+    cell?.column?.columnDef?.id) as keyof Payment;
+
+  if (!columnId) {
+    throw new Error("Column ID is not defined");
+  }
+  const rules = cell.getContext().table?.options.meta?.rules || [];
+
+  const filterRules = rules?.filter((rule) => {
+    const result = matchRule({
+      columnId,
+      rule,
+      value: cell.getValue() as TValueBase,
+    });
+
+    return result;
+  });
+  if (filterRules.length) {
+    const combinedStyles = filterRules?.reduce((acc, rule) => {
+      return {
+        ...acc,
+        ...rule.styles,
+      };
+    }, {});
+
+    return combinedStyles;
+  }
+  return {};
+}
 
 export function ColorPicker({
   background,
@@ -113,7 +203,7 @@ export function ColorPicker({
   );
 }
 
-export interface Rule<TData extends RowData, Value = TValueBase> {
+export interface Rule<TData extends RowData, Value = unknown> {
   column: Array<keyof TData>;
   operator: RuleOperator;
   value: Value;
@@ -128,9 +218,9 @@ export function DataTable() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
 
-  const [newRule, setNewRule] = React.useState({
+  const [newRule, setNewRule] = React.useState<NewRuleState>({
     color: "",
-    styles: [] as string[],
+    styles: [],
     operator: "contains",
     value: "",
     column: [] as Array<keyof Payment>,
@@ -142,75 +232,9 @@ export function DataTable() {
   // improve operators functions
   // for user search
   // 10 === "10" or 10 !== "10"
-  const [rules, setRules] = React.useState<Rule<Payment>[]>([
-    {
-      column: ["status"],
-      operator: "contains",
-      value: "failed",
-      styles: {
-        backgroundColor: "#ffed9d",
-      },
-    },
-    {
-      column: ["amount"],
-      operator: "equals",
-      value: 316,
-      styles: {
-        color: "green",
-        fontWeight: "600",
-      },
-    },
-    {
-      column: ["amount"],
-      operator: "equals",
-      value: 242,
-      styles: {
-        color: "green",
-        fontWeight: "600",
-        backgroundColor: "#c0ffc8",
-      },
-    },
-    {
-      column: ["email"],
-      operator: "notEquals",
-      value: "janedoe@example.com",
-      styles: {
-        color: "#777",
-      },
-    },
-    {
-      column: ["email"],
-      operator: "contains",
-      value: "ll",
-      styles: {
-        color: "red",
-      },
-    },
-    {
-      column: ["amount"],
-      operator: "greaterThan",
-      value: 900,
-      styles: {
-        color: "red",
-      },
-    },
-    {
-      column: ["amount"],
-      operator: "contains",
-      value: "7",
-      styles: {
-        color: "blue",
-      },
-    },
-    {
-      column: ["status", "email"],
-      operator: "contains",
-      value: "uc",
-      styles: {
-        color: "pink",
-      },
-    },
-  ]);
+  const [rules, setRules] = React.useState<Rule<Payment>[]>([]);
+
+  console.log(rules);
 
   const table = useReactTable({
     data: dataTable,
@@ -229,76 +253,16 @@ export function DataTable() {
     },
     meta: {
       rules,
-      rulesFn: (cell) => {
-        // keyof TData
-        const columnId = (cell?.column?.id ||
-          cell?.column?.columnDef?.id) as keyof Payment;
-
-        if (!columnId) {
-          throw new Error("Column ID is not defined");
-        }
-        const rules = cell.getContext().table?.options.meta?.rules || [];
-
-        const operators: Record<
-          RuleOperator,
-          (a: TValueBase, b: TValueBase) => boolean
-        > = {
-          contains: (a, b) => {
-            return a
-              .toString()
-              .toLowerCase()
-              .includes(b.toString().toLowerCase());
-          },
-          equals: (a, b) => {
-            if (typeof a === "number" && typeof b === "number") {
-              return Number(a) === Number(b);
-            }
-            return a === b;
-          },
-          greaterThan: (a, b) => {
-            if (typeof a === "number" && typeof b === "number") {
-              return Number(a) > Number(b);
-            }
-
-            return false;
-          },
-          lessThan: (a, b) => {
-            if (typeof a === "number" && typeof b === "number") {
-              return Number(a) < Number(b);
-            }
-            return false;
-          },
-          notEquals: (a, b) => {
-            if (typeof a === "number" && typeof b === "number") {
-              return Number(a) !== Number(b);
-            }
-            return a !== b;
-          },
-        };
-
-        const filterRules = rules?.filter((rule) => {
-          const columnMatch = rule.column.includes(columnId);
-          const value = cell.getValue();
-
-          const operatorFn = operators[rule.operator];
-          const operatorMatch = operatorFn(value, rule.value);
-
-          return columnMatch && operatorMatch;
-        });
-        if (filterRules.length) {
-          const combinedStyles = filterRules?.reduce((acc, rule) => {
-            return {
-              ...acc,
-              ...rule.styles,
-            };
-          }, {});
-
-          return combinedStyles;
-        }
-        return {};
-      },
+      rulesFn: applyRuleFn,
     },
   });
+
+  const handleChangeRuleFont = React.useCallback((value: RuleFontValue[]) => {
+    setNewRule((prev) => ({
+      ...prev,
+      styles: value,
+    }));
+  }, []);
 
   return (
     <div className="w-full">
@@ -438,35 +402,10 @@ export function DataTable() {
                     <span className="text-gray-400 text-xs">Style</span>
                     <div className="flex gap-2 flex-col">
                       <div className="flex gap-2">
-                        <ToggleGroup
-                          size={"sm"}
-                          type="multiple"
-                          variant="outline"
+                        <RuleFont
+                          onChange={handleChangeRuleFont}
                           value={newRule.styles}
-                          onValueChange={(v) => {
-                            console.log(v);
-                            setNewRule((prev) => ({ ...prev, styles: v }));
-                          }}
-                        >
-                          <ToggleGroupItem
-                            value="bold"
-                            aria-label="Toggle bold"
-                          >
-                            <Bold className="h-4 w-4" />
-                          </ToggleGroupItem>
-                          <ToggleGroupItem
-                            value="italic"
-                            aria-label="Toggle italic"
-                          >
-                            <Italic className="h-4 w-4" />
-                          </ToggleGroupItem>
-                          <ToggleGroupItem
-                            value="underline"
-                            aria-label="Toggle underline"
-                          >
-                            <Underline className="h-4 w-4" />
-                          </ToggleGroupItem>
-                        </ToggleGroup>
+                        />
                       </div>
 
                       <ColorPicker
@@ -485,16 +424,17 @@ export function DataTable() {
                   <Button variant="outline">Cancel</Button>
                 </DrawerClose>
                 <Button
+                  disabled={
+                    (!newRule.column.length && !newRule.value.trim()) ||
+                    (!newRule.styles.length && !newRule.color)
+                  }
                   onClick={() => {
                     const mappedStyles: React.CSSProperties =
                       newRule.styles.reduce((acc, item) => {
-                        if (item === "bold")
-                          return { ...acc, fontWeight: "bold" };
-                        if (item === "italic")
-                          return { ...acc, fontStyle: "italic" };
-                        if (item === "underline")
-                          return { ...acc, textDecoration: "underline" };
-                        return acc;
+                        return {
+                          ...acc,
+                          ...item.styles,
+                        };
                       }, {});
                     if (newRule.color) {
                       mappedStyles.backgroundColor = newRule.color;
@@ -502,7 +442,7 @@ export function DataTable() {
                     const transformRule: Rule<Payment, TValueBase> = {
                       column: newRule.column,
                       operator: newRule.operator as RuleOperator,
-                      value: newRule.value || "99",
+                      value: newRule.value,
                       styles: mappedStyles,
                     };
                     setRules((prev) => [...prev, transformRule]);
@@ -514,8 +454,6 @@ export function DataTable() {
                       value: "",
                       column: [],
                     });
-                    // add validation
-                    // or style or color
                   }}
                 >
                   Apply
@@ -554,6 +492,9 @@ export function DataTable() {
               >
                 {row.getVisibleCells().map((cell) => {
                   const styles = getCellRuleValue(cell);
+
+                  // add realtime cell styles while create rule
+
                   return (
                     <TableCell key={cell.id} className="px-6" style={styles}>
                       {flexRender(

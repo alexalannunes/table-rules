@@ -6,10 +6,7 @@ import { ArrowUp } from "lucide-react";
 import { CSSProperties } from "react";
 import { Button } from "../ui/button";
 
-export const getCellRuleValue = <
-  TData extends RowData,
-  TValue extends TValueBase = TValueBase
->(
+export const getCellRuleValue = <TData extends RowData, TValue = unknown>(
   cell: Cell<TData, TValue>
 ): CSSProperties => {
   let styles = {};
