@@ -545,6 +545,11 @@ export function DataTable() {
                           variant={"ghost"}
                           size={"icon"}
                           className="opacity-0 group-hover:opacity-100"
+                          onClick={() => {
+                            setRules((prev) =>
+                              prev.filter((_, x) => x !== index)
+                            );
+                          }}
                         >
                           <X />
                         </Button>
