@@ -23,7 +23,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import { ChevronDown, DatabaseIcon } from "lucide-react";
+import { ChevronDown, DatabaseIcon, X } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -239,14 +239,82 @@ export function DataTable() {
   });
 
   const [ruleOpen, setRuleOpen] = React.useState(false);
-
-  // for string value to compare number value, should allow , but convert
-  // improve operators functions
-  // for user search
-  // 10 === "10" or 10 !== "10"
-  const [rules, setRules] = React.useState<Rule<Payment>[]>([]);
-
-  console.log(rules);
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [rules, setRules] = React.useState<Rule<Payment>[]>([
+    {
+      column: ["status"],
+      operator: "contains",
+      value: "success",
+      styles: {
+        fontStyle: "italic",
+        fontWeight: "bold",
+      },
+    },
+    {
+      column: ["email", "status"],
+      operator: "contains",
+      value: "r",
+      styles: {
+        textDecoration: "underline",
+      },
+    },
+    {
+      column: ["email"],
+      operator: "contains",
+      value: "ken",
+      styles: {
+        backgroundColor: "#ffa647",
+      },
+    },
+    {
+      column: ["email"],
+      operator: "contains",
+      value: "silas",
+      styles: {
+        textDecoration: "line-through",
+      },
+    },
+    {
+      column: ["email"],
+      operator: "contains",
+      value: "ken",
+      styles: {
+        textDecoration: "line-through",
+      },
+    },
+    {
+      column: ["amount"],
+      operator: "notEquals",
+      value: 43,
+      styles: {
+        fontWeight: "bold",
+      },
+    },
+    {
+      column: ["amount"],
+      operator: "greaterThan",
+      value: 600,
+      styles: {
+        backgroundColor: "#ffa647",
+      },
+    },
+    {
+      column: ["status"],
+      operator: "contains",
+      value: "pro",
+      styles: {
+        fontWeight: "bold",
+      },
+    },
+    {
+      column: ["amount"],
+      operator: "greaterThan",
+      value: 800,
+      styles: {
+        backgroundColor: "#ff75c3",
+      },
+    },
+  ]);
 
   const table = useReactTable({
     data: dataTable,
@@ -330,6 +398,18 @@ export function DataTable() {
             handleOnly
             open={ruleOpen}
             onOpenChange={setRuleOpen}
+            onAnimationEnd={(state) => {
+              if (!state) {
+                setNewRule({
+                  color: "",
+                  styles: [],
+                  operator: "contains",
+                  value: "",
+                  column: [],
+                });
+                setIsCreating(false);
+              }
+            }}
           >
             <DrawerTrigger asChild>
               <Button variant="outline">
@@ -342,143 +422,202 @@ export function DataTable() {
                 <DrawerDescription />
               </DrawerHeader>
 
-              <div className="space-y-2">
-                <div className="flex flex-col">
-                  <h4 className="mx-4 font-semibold mb-2 text-sm">Columns</h4>
-                  {columns.map((column, index) => {
-                    return (
-                      <Label
-                        htmlFor={index.toString()}
-                        key={index.toString()}
-                        className="flex items-center gap-2 hover:bg-accent rounded-md p-2 mx-2 cursor-pointer"
-                      >
-                        <Checkbox
-                          id={index.toString()}
-                          checked={newRule.column.includes(
-                            column.id as keyof Payment
-                          )}
-                          onCheckedChange={() => {
+              {isCreating ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex flex-col">
+                      <h4 className="mx-4 font-semibold mb-2 text-sm">
+                        Columns
+                      </h4>
+                      {columns.map((column, index) => {
+                        return (
+                          <Label
+                            htmlFor={index.toString()}
+                            key={index.toString()}
+                            className="flex items-center gap-2 hover:bg-accent rounded-md p-2 mx-2 cursor-pointer"
+                          >
+                            <Checkbox
+                              id={index.toString()}
+                              checked={newRule.column.includes(
+                                column.id as keyof Payment
+                              )}
+                              onCheckedChange={() => {
+                                setNewRule((prev) => ({
+                                  ...prev,
+                                  column: prev.column.includes(
+                                    column.id as keyof Payment
+                                  )
+                                    ? prev.column.filter(
+                                        (c) =>
+                                          c !== (column.id as keyof Payment)
+                                      )
+                                    : [
+                                        ...prev.column,
+                                        column.id as keyof Payment,
+                                      ],
+                                }));
+                              }}
+                            />
+                            {column.meta?.title}
+                          </Label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <div className="flex flex-col">
+                      <h4 className="mx-4 font-semibold mb-2 text-sm">Rule</h4>
+                      <div className="mx-4 flex gap-2 flex-col mt-1">
+                        <span className="text-gray-400 text-xs">
+                          Format cell if...
+                        </span>
+                        <Select
+                          value={newRule.operator}
+                          onValueChange={(value) =>
+                            setNewRule((prev) => ({ ...prev, operator: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a fruit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(operatorOptions).map(
+                              ([operator, value]) => {
+                                return (
+                                  <SelectItem key={operator} value={operator}>
+                                    {value}
+                                  </SelectItem>
+                                );
+                              }
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        <Input
+                          value={newRule.value}
+                          onChange={(e) => {
                             setNewRule((prev) => ({
                               ...prev,
-                              column: prev.column.includes(
-                                column.id as keyof Payment
-                              )
-                                ? prev.column.filter(
-                                    (c) => c !== (column.id as keyof Payment)
-                                  )
-                                : [...prev.column, column.id as keyof Payment],
+                              value: e.target.value,
                             }));
                           }}
                         />
-                        {column.meta?.title}
-                      </Label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-2 mt-4">
-                <div className="flex flex-col">
-                  <h4 className="mx-4 font-semibold mb-2 text-sm">Rule</h4>
-                  <div className="mx-4 flex gap-2 flex-col mt-1">
-                    <span className="text-gray-400 text-xs">
-                      Format cell if...
-                    </span>
-                    <Select
-                      value={newRule.operator}
-                      onValueChange={(value) =>
-                        setNewRule((prev) => ({ ...prev, operator: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a fruit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(operatorOptions).map(
-                          ([operator, value]) => {
-                            return (
-                              <SelectItem key={operator} value={operator}>
-                                {value}
-                              </SelectItem>
-                            );
-                          }
-                        )}
-                      </SelectContent>
-                    </Select>
-
-                    <Input
-                      value={newRule.value}
-                      onChange={(e) => {
-                        setNewRule((prev) => ({
-                          ...prev,
-                          value: e.target.value,
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  <div className="mx-4 flex gap-2 flex-col mt-6">
-                    <span className="text-gray-400 text-xs">Style</span>
-                    <div className="flex gap-2 flex-col">
-                      <div className="flex gap-2">
-                        <RuleFont
-                          onChange={handleChangeRuleFont}
-                          value={newRule.styles}
-                        />
                       </div>
 
-                      <ColorPicker
-                        background={newRule.color}
-                        setBackground={(v) =>
-                          setNewRule((prev) => ({ ...prev, color: v }))
-                        }
-                      />
+                      <div className="mx-4 flex gap-2 flex-col mt-6">
+                        <span className="text-gray-400 text-xs">Style</span>
+                        <div className="flex gap-2 flex-col">
+                          <div className="flex gap-2">
+                            <RuleFont
+                              onChange={handleChangeRuleFont}
+                              value={newRule.styles}
+                            />
+                          </div>
+
+                          <ColorPicker
+                            background={newRule.color}
+                            setBackground={(v) =>
+                              setNewRule((prev) => ({ ...prev, color: v }))
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </>
+              ) : (
+                <div className="flex flex-col gap-2 px-4">
+                  <h4 className="text-lg">Rules</h4>
+                  <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+                    {rules.map((rule, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center border-b pb-2 group"
+                      >
+                        <div className="flex flex-col last:border-none">
+                          <span className="text-gray-700">
+                            {rule.column.join(", ")}
+                          </span>
+                          <span style={rule.styles}>Value</span>
+                        </div>
+                        <Button
+                          variant={"ghost"}
+                          size={"icon"}
+                          className="opacity-0 group-hover:opacity-100"
+                        >
+                          <X />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <DrawerFooter className="flex-row justify-end">
-                <DrawerClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DrawerClose>
+              {!isCreating && (
                 <Button
-                  disabled={
-                    (!newRule.column.length && !newRule.value.trim()) ||
-                    (!newRule.styles.length && !newRule.color)
-                  }
-                  onClick={() => {
-                    const mappedStyles: React.CSSProperties =
-                      newRule.styles.reduce((acc, item) => {
-                        return {
-                          ...acc,
-                          ...item.styles,
-                        };
-                      }, {});
-                    if (newRule.color) {
-                      mappedStyles.backgroundColor = newRule.color;
-                    }
-                    const transformRule: Rule<Payment, TValueBase> = {
-                      column: newRule.column,
-                      operator: newRule.operator as RuleOperator,
-                      value: !isNaN(newRule.value as unknown as number)
-                        ? Number(newRule.value)
-                        : newRule.value,
-                      styles: mappedStyles,
-                    };
-                    setRules((prev) => [...prev, transformRule]);
-                    setRuleOpen(false);
-                    setNewRule({
-                      color: "",
-                      styles: [],
-                      operator: "contains",
-                      value: "",
-                      column: [],
-                    });
-                  }}
+                  onClick={() => setIsCreating(true)}
+                  className="mx-4 mt-10"
+                  variant={"outline"}
                 >
-                  Apply
+                  Create rule
                 </Button>
+              )}
+
+              <DrawerFooter>
+                <div
+                  className={cn(
+                    "flex items-center",
+                    isCreating ? "justify-between" : "justify-end"
+                  )}
+                >
+                  {isCreating && (
+                    <Button
+                      variant={"outline"}
+                      onClick={() => setIsCreating(false)}
+                    >
+                      Back
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <DrawerClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DrawerClose>
+                    {isCreating && (
+                      <DrawerClose asChild>
+                        <Button
+                          disabled={
+                            (!newRule.column.length && !newRule.value.trim()) ||
+                            (!newRule.styles.length && !newRule.color)
+                          }
+                          onClick={() => {
+                            const mappedStyles: React.CSSProperties =
+                              newRule.styles.reduce((acc, item) => {
+                                return {
+                                  ...acc,
+                                  ...item.styles,
+                                };
+                              }, {});
+                            if (newRule.color) {
+                              mappedStyles.backgroundColor = newRule.color;
+                            }
+                            const transformRule: Rule<Payment, TValueBase> = {
+                              column: newRule.column,
+                              operator: newRule.operator as RuleOperator,
+                              value: !isNaN(newRule.value as unknown as number)
+                                ? Number(newRule.value)
+                                : newRule.value,
+                              styles: mappedStyles,
+                            };
+                            setRules((prev) => [...prev, transformRule]);
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      </DrawerClose>
+                    )}
+                  </div>
+                </div>
               </DrawerFooter>
             </DrawerContent>
           </Drawer>
